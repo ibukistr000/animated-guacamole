@@ -1,373 +1,287 @@
 <!doctype html>
 <html lang="ja">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TRPG 地雷チェック（GM用：コード生成）</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            max-width: 1100px;
-            margin: 24px auto;
-            padding: 0 12px;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TRPG 地雷チェック（GM用：コード生成）</title>
+  <style>
+    body { font-family: sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 12px; }
+    .box { border: 1px solid #ccc; border-radius: 12px; padding: 12px; margin: 12px 0; }
+    textarea, input { width: 100%; box-sizing: border-box; }
+    textarea { min-height: 180px; }
+    button { padding: 10px 12px; cursor: pointer; }
+    .small { color: #555; font-size: 0.9em; }
 
-        .box {
-            border: 1px solid #ccc;
-            border-radius: 12px;
-            padding: 12px;
-            margin: 12px 0;
-        }
+    .cat { margin-top: 12px; font-weight: 800; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 10px 16px; }
 
-        textarea, input {
-            width: 100%;
-            box-sizing: border-box;
-        }
+    /* 行全体クリック・右端チェック固定 */
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      cursor: pointer;
+      user-select: none;
+      background: #fff;
+    }
+    .item:hover { background: #fafafa; }
 
-        textarea {
-            min-height: 180px;
-        }
+    /* 変な改行を抑える */
+    .item .label {
+      flex: 1;
+      min-width: 0;
+      word-break: keep-all;
+      line-break: strict;
+      overflow-wrap: anywhere;
+    }
 
-        button {
-            padding: 10px 12px;
-            cursor: pointer;
-        }
-
-        .small {
-            color: #555;
-            font-size: 0.9em;
-        }
-
-        code {
-            background: #f6f6f6;
-            padding: 2px 4px;
-            border-radius: 6px;
-        }
-
-        .cat {
-            margin-top: 12px;
-            font-weight: 800;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-            gap: 10px 16px;
-        }
-        .item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between; /* 右端にチェック固定 */
-            gap: 12px;
-            padding: 10px 12px;
-            border: 1px solid #eee;
-            border-radius: 12px;
-            cursor: pointer;
-            user-select: none;
-            background: #fff;
-        }
-
-            .item:hover {
-                background: #fafafa;
-            }
-
-            .item .label {
-                flex: 1;
-                min-width: 0;
-                word-break: keep-all; 
-                line-break: strict;
-                overflow-wrap: anywhere; 
-            }
-
-            .item input[type="checkbox"] {
-                flex: 0 0 auto;
-                width: 18px;
-                height: 18px;
-                margin: 0;
-            }
-    </style>
+    .item input[type="checkbox"] {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      margin: 0;
+    }
+  </style>
 </head>
 <body>
 
-    <h1>TRPG 地雷チェック（GM用：生成）</h1>
+<h1>TRPG 地雷チェック（GM用：生成）</h1>
 
-    <div class="box">
-        <h2>1) シナリオに含まれる要素をチェック</h2>
-        <div id="tagList"></div>
-    </div>
+<div class="box">
+  <h2>1) シナリオに含まれる要素をチェック</h2>
+  <div id="tagList"></div>
+</div>
 
-    <div class="box">
-        <h2>2) 鍵の作り方</h2>
-        <label><input type="radio" name="keyMode" value="random" checked> ランダム鍵</label><br>
+<!-- 鍵の選択UIは削除：ランダム鍵のみ -->
+<div class="box">
+  <h2>2) 配布情報を生成（ランダム鍵のみ）</h2>
+  <button id="generateBtn">生成する</button>
+</div>
 
-        <button id="generateBtn">生成する</button>
-    </div>
+<div class="box">
+  <h2>3) 配布用JSON（これだけ渡す）</h2>
+  <textarea id="outJson" readonly></textarea>
+  <p class="small">※ tokens は常に 64 個（ダミー込み）です。含有数は漏れません。</p>
+</div>
 
-    <div class="box">
-        <h2>3) 配布用JSON（これだけ渡す）</h2>
-        <textarea id="outJson" readonly></textarea>
-        <p class="small">
-        </p>
-    </div>
+<script>
+/* ===== 固定ダミー本数 ===== */
+const TARGET_TOKEN_COUNT = 64;
 
-    <script>
-        /* ===== 固定ダミー本数 ===== */
-        const TARGET_TOKEN_COUNT = 64;
+/* ===== タグ（GM/PLでID完全一致） ===== */
+const TAG_CATEGORIES = [
+  { name: "① 性・恋愛・身体・ジェンダー", tags: [
+    { id: "SEXUAL_CONTENT", label: "性描写（R18）" },
+    { id: "SEXUAL_GORE", label: "グロテスクな性描写（R18G）" },
+    { id: "ROMANCE_RP", label: "恋愛RP" },
+    { id: "SEXUAL_VIOLENCE", label: "性暴力" },
+    { id: "INCEST", label: "近親相姦" },
+    { id: "FETISH", label: "フェチ要素" },
+    { id: "HOMOSEXUAL", label: "同性愛表現" },
+    { id: "GENDER_SWAP", label: "性転換" },
+    { id: "SECOND_GENDER", label: "第二の性" },
+    { id: "PREGNANCY", label: "妊娠" },
+    { id: "ABORTION", label: "中絶・流産" },
+    { id: "CROSSDRESS", label: "異性装" },
+    { id: "FORCED_MARRIAGE", label: "結婚・番いの強制" }
+  ]},
+  { name: "② 暴力・グロ・身体損壊", tags: [
+    { id: "MURDER", label: "殺人描写" },
+    { id: "KILLED", label: "殺害される描写" },
+    { id: "BLOOD", label: "血・スプラッタ" },
+    { id: "GORE", label: "ゴア表現" },
+    { id: "ORGANS", label: "内臓描写" },
+    { id: "LIMB_LOSS", label: "四肢欠損" },
+    { id: "DISABILITY", label: "身体の欠損・障害" },
+    { id: "HUMAN_EXPERIMENT", label: "人体実験" },
+    { id: "TORTURE", label: "拷問" },
+    { id: "BLADES", label: "刃物による描写" },
+    { id: "CANNIBALISM", label: "カニバリズム" },
+    { id: "FUSION", label: "人体融合" },
+    { id: "ZOMBIE", label: "ゾンビ化・死体冒涜" }
+  ]},
+  { name: "③ 死・ロスト・不可逆要素", tags: [
+    { id: "PC_LOST", label: "PCの確定ロスト" },
+    { id: "NPC_LOST", label: "NPCの確定ロスト" },
+    { id: "MID_LOST", label: "途中ロストの可能性" },
+    { id: "LOST_RESCUE", label: "ロスト救済あり" },
+    { id: "AFTEREFFECT", label: "後遺症" },
+    { id: "NO_CONTINUE", label: "継続不可" },
+    { id: "MERRY_BAD", label: "メリーバッドエンド" },
+    { id: "WORLD_END", label: "世界滅亡エンド" },
+    { id: "HARD_DIFFICULTY", label: "極端な難易度" }
+  ]},
+  { name: "④ 精神・心理・強制", tags: [
+    { id: "SUICIDE", label: "自殺表現" },
+    { id: "HOMICIDE", label: "他殺" },
+    { id: "REAL_MENTAL", label: "実在の精神疾患" },
+    { id: "FICTION_DISEASE", label: "架空の病気" },
+    { id: "BRAINWASH", label: "精神操作・洗脳" },
+    { id: "FORCED_EMOTION", label: "感情や行動の強制" },
+    { id: "NO_REASON_FORCE", label: "理由のない行動強制" },
+    { id: "AMNESIA", label: "記憶喪失" },
+    { id: "MEMORY_REVEAL", label: "記憶の後出し開示" },
+    { id: "GASLIGHT", label: "ガスライティング" },
+    { id: "MENTAL_ABUSE", label: "精神的虐待" },
+    { id: "ETHICS_TEST", label: "倫理観を問う展開" }
+  ]},
+  { name: "⑤ 差別・社会問題・現実性", tags: [
+    { id: "RACISM", label: "人種・民族差別" },
+    { id: "SEXISM", label: "性差別" },
+    { id: "OTHER_DISCRIMINATION", label: "その他の社会的差別" },
+    { id: "BULLYING", label: "いじめ" },
+    { id: "HARASSMENT", label: "パワハラ／セクハラ" },
+    { id: "ELDER_CHILD_VIOLENCE", label: "高齢者・子供への暴力" },
+    { id: "CHILD_ABUSE", label: "児童虐待" },
+    { id: "REAL_EVENT", label: "実在の事件" },
+    { id: "REAL_HISTORY", label: "実在の歴史" },
+    { id: "REAL_DISEASE", label: "現実の病気" },
+    { id: "REAL_PERSON_MODEL", label: "実在人物を想起させる設定" },
+    { id: "POLITICS", label: "政治" },
+    { id: "WAR", label: "戦争" },
+    { id: "DISASTER", label: "災害・感染症" }
+  ]},
+  { name: "⑥ 生物・嫌悪表現", tags: [
+    { id: "INSECTS", label: "虫" },
+    { id: "INSECT_EAT", label: "昆虫食" },
+    { id: "SPIDERS", label: "クモ" },
+    { id: "PARASITE", label: "寄生生物" },
+    { id: "CLUSTER", label: "集合体" },
+    { id: "FETUS", label: "胎児" },
+    { id: "DOLL", label: "人形" },
+    { id: "ANIMAL_VIOLENCE", label: "動物への暴力" },
+    { id: "ALIEN", label: "宇宙生物・異形生命" },
+    { id: "DEEP_SEA", label: "深海生物" }
+  ]},
+  { name: "⑦ 宗教・神話・オカルト", tags: [
+    { id: "REAL_RELIGION", label: "宗教（実在）" },
+    { id: "FICTION_RELIGION", label: "宗教（架空）" },
+    { id: "REAL_MYTH", label: "実在の神話" },
+    { id: "REAL_GOD", label: "実在の神" },
+    { id: "MYTH_ORIGINAL", label: "神話生物の独自解釈" },
+    { id: "NO_CTHULHU", label: "クトゥルフ要素なし" },
+    { id: "ORIGINAL_GOD", label: "オリジナル神話生物" },
+    { id: "ORIGINAL_SPELL", label: "オリジナル呪文" }
+  ]},
+  { name: "⑧ シナリオ構造・メタ要素", tags: [
+    { id: "META", label: "メタフィクション" },
+    { id: "PL_INTERFERENCE", label: "PL視点への干渉" },
+    { id: "NPC_AWARE", label: "NPCがPLを認知している" },
+    { id: "SECRET_HO", label: "秘匿HOあり（非開示）" },
+    { id: "SECRET_GAP", label: "PC間の秘密格差" },
+    { id: "SURPRISE", label: "強制サプライズ要素" },
+    { id: "RAILROAD", label: "一本道シナリオ" },
+    { id: "IMPULSE", label: "無茶ぶり" },
+    { id: "CONVENIENT", label: "ご都合主義展開" },
+    { id: "ORIGINAL_STAGE", label: "原作舞台の独自解釈" },
+    { id: "LONG_SESSION", label: "長時間拘束" }
+  ]},
+  { name: "⑨ PC／NPCへの扱い・関係性", tags: [
+    { id: "FORCED_CRIME", label: "PC犯罪行為の強制" },
+    { id: "STATUS_CHANGE", label: "ステータス変動" },
+    { id: "OVERPOWER", label: "強すぎる設定付与" },
+    { id: "FORCED_PROFILE", label: "性別・年齢設定の強制" },
+    { id: "BURDEN", label: "異常な役割負担" },
+    { id: "PC_LIE", label: "PC同士の嘘・騙し合い" },
+    { id: "PC_ARGUMENT", label: "PC同士の口論" },
+    { id: "NPC_SACRIFICE", label: "NPCの自己犠牲" },
+    { id: "NPC_DEATH_FIXED", label: "NPCの死が前提" },
+    { id: "NPC_DOMINANT", label: "NPCが活躍しすぎる" }
+  ]},
+  { name: "⑩ PvP・対立・卓内摩擦", tags: [
+    { id: "PVP_MENTAL", label: "PvP（精神的）" },
+    { id: "PVP_PHYSICAL", label: "PvP（戦闘・肉体的）" },
+    { id: "PVP_LOST", label: "ロストを伴うPvP" },
+    { id: "PVP_NO_LOST", label: "ロストを伴わないPvP" },
+    { id: "FORCED_PVP", label: "シナリオ強制PvP" },
+    { id: "BETRAYAL", label: "裏切り" },
+    { id: "PARTY_CONFLICT", label: "パーティ内不和" },
+    { id: "CONTROL", label: "操作・支配関係" }
+  ]}
+];
 
-        /* ===== タグ（GM/PLでID完全一致） ===== */
-        const TAG_CATEGORIES = [
-            {
-                name: "① 性・恋愛・身体・ジェンダー", tags: [
-                    { id: "SEXUAL_CONTENT", label: "性描写（R18）" },
-                    { id: "SEXUAL_GORE", label: "グロテスクな性描写（R18G）" },
-                    { id: "ROMANCE_RP", label: "恋愛RP" },
-                    { id: "SEXUAL_VIOLENCE", label: "性暴力" },
-                    { id: "INCEST", label: "近親相姦" },
-                    { id: "FETISH", label: "フェチ要素" },
-                    { id: "HOMOSEXUAL", label: "同性愛表現" },
-                    { id: "GENDER_SWAP", label: "性転換" },
-                    { id: "SECOND_GENDER", label: "第二の性" },
-                    { id: "PREGNANCY", label: "妊娠" },
-                    { id: "ABORTION", label: "中絶・流産" },
-                    { id: "CROSSDRESS", label: "異性装" },
-                    { id: "FORCED_MARRIAGE", label: "結婚・番いの強制" }
-                ]
-            },
-            {
-                name: "② 暴力・グロ・身体損壊", tags: [
-                    { id: "MURDER", label: "殺人描写" },
-                    { id: "KILLED", label: "殺害される描写" },
-                    { id: "BLOOD", label: "血・スプラッタ" },
-                    { id: "GORE", label: "ゴア表現" },
-                    { id: "ORGANS", label: "内臓描写" },
-                    { id: "LIMB_LOSS", label: "四肢欠損" },
-                    { id: "DISABILITY", label: "身体の欠損・障害" },
-                    { id: "HUMAN_EXPERIMENT", label: "人体実験" },
-                    { id: "TORTURE", label: "拷問" },
-                    { id: "BLADES", label: "刃物による描写" },
-                    { id: "CANNIBALISM", label: "カニバリズム" },
-                    { id: "FUSION", label: "人体融合" },
-                    { id: "ZOMBIE", label: "ゾンビ化・死体冒涜" }
-                ]
-            },
-            {
-                name: "③ 死・ロスト・不可逆要素", tags: [
-                    { id: "PC_LOST", label: "PCの確定ロスト" },
-                    { id: "NPC_LOST", label: "NPCの確定ロスト" },
-                    { id: "MID_LOST", label: "途中ロストの可能性" },
-                    { id: "LOST_RESCUE", label: "ロスト救済あり" },
-                    { id: "AFTEREFFECT", label: "後遺症" },
-                    { id: "NO_CONTINUE", label: "継続不可" },
-                    { id: "MERRY_BAD", label: "メリーバッドエンド" },
-                    { id: "WORLD_END", label: "世界滅亡エンド" },
-                    { id: "HARD_DIFFICULTY", label: "極端な難易度" }
-                ]
-            },
-            {
-                name: "④ 精神・心理・強制", tags: [
-                    { id: "SUICIDE", label: "自殺表現" },
-                    { id: "HOMICIDE", label: "他殺" },
-                    { id: "REAL_MENTAL", label: "実在の精神疾患" },
-                    { id: "FICTION_DISEASE", label: "架空の病気" },
-                    { id: "BRAINWASH", label: "精神操作・洗脳" },
-                    { id: "FORCED_EMOTION", label: "感情や行動の強制" },
-                    { id: "NO_REASON_FORCE", label: "理由のない行動強制" },
-                    { id: "AMNESIA", label: "記憶喪失" },
-                    { id: "MEMORY_REVEAL", label: "記憶の後出し開示" },
-                    { id: "GASLIGHT", label: "ガスライティング" },
-                    { id: "MENTAL_ABUSE", label: "精神的虐待" },
-                    { id: "ETHICS_TEST", label: "倫理観を問う展開" }
-                ]
-            },
-            {
-                name: "⑤ 差別・社会問題・現実性", tags: [
-                    { id: "RACISM", label: "人種・民族差別" },
-                    { id: "SEXISM", label: "性差別" },
-                    { id: "OTHER_DISCRIMINATION", label: "その他の社会的差別" },
-                    { id: "BULLYING", label: "いじめ" },
-                    { id: "HARASSMENT", label: "パワハラ／セクハラ" },
-                    { id: "ELDER_CHILD_VIOLENCE", label: "高齢者・子供への暴力" },
-                    { id: "CHILD_ABUSE", label: "児童虐待" },
-                    { id: "REAL_EVENT", label: "実在の事件" },
-                    { id: "REAL_HISTORY", label: "実在の歴史" },
-                    { id: "REAL_DISEASE", label: "現実の病気" },
-                    { id: "REAL_PERSON_MODEL", label: "実在人物を想起させる設定" },
-                    { id: "POLITICS", label: "政治" },
-                    { id: "WAR", label: "戦争" },
-                    { id: "DISASTER", label: "災害・感染症" }
-                ]
-            },
-            {
-                name: "⑥ 生物・嫌悪表現", tags: [
-                    { id: "INSECTS", label: "虫" },
-                    { id: "INSECT_EAT", label: "昆虫食" },
-                    { id: "SPIDERS", label: "クモ" },
-                    { id: "PARASITE", label: "寄生生物" },
-                    { id: "CLUSTER", label: "集合体" },
-                    { id: "FETUS", label: "胎児" },
-                    { id: "DOLL", label: "人形" },
-                    { id: "ANIMAL_VIOLENCE", label: "動物への暴力" },
-                    { id: "ALIEN", label: "宇宙生物・異形生命" },
-                    { id: "DEEP_SEA", label: "深海生物" }
-                ]
-            },
-            {
-                name: "⑦ 宗教・神話・オカルト", tags: [
-                    { id: "REAL_RELIGION", label: "宗教（実在）" },
-                    { id: "FICTION_RELIGION", label: "宗教（架空）" },
-                    { id: "REAL_MYTH", label: "実在の神話" },
-                    { id: "REAL_GOD", label: "実在の神" },
-                    { id: "MYTH_ORIGINAL", label: "神話生物の独自解釈" },
-                    { id: "NO_CTHULHU", label: "クトゥルフ要素なし" },
-                    { id: "ORIGINAL_GOD", label: "オリジナル神話生物" },
-                    { id: "ORIGINAL_SPELL", label: "オリジナル呪文" }
-                ]
-            },
-            {
-                name: "⑧ シナリオ構造・メタ要素", tags: [
-                    { id: "META", label: "メタフィクション" },
-                    { id: "PL_INTERFERENCE", label: "PL視点への干渉" },
-                    { id: "NPC_AWARE", label: "NPCがPLを認知している" },
-                    { id: "SECRET_HO", label: "秘匿HOあり（非開示）" },
-                    { id: "SECRET_GAP", label: "PC間の秘密格差" },
-                    { id: "SURPRISE", label: "強制サプライズ要素" },
-                    { id: "RAILROAD", label: "一本道シナリオ" },
-                    { id: "IMPULSE", label: "無茶ぶり" },
-                    { id: "CONVENIENT", label: "ご都合主義展開" },
-                    { id: "ORIGINAL_STAGE", label: "原作舞台の独自解釈" },
-                    { id: "LONG_SESSION", label: "長時間拘束" }
-                ]
-            },
-            {
-                name: "⑨ PC／NPCへの扱い・関係性", tags: [
-                    { id: "FORCED_CRIME", label: "PC犯罪行為の強制" },
-                    { id: "STATUS_CHANGE", label: "ステータス変動" },
-                    { id: "OVERPOWER", label: "強すぎる設定付与" },
-                    { id: "FORCED_PROFILE", label: "性別・年齢設定の強制" },
-                    { id: "BURDEN", label: "異常な役割負担" },
-                    { id: "PC_LIE", label: "PC同士の嘘・騙し合い" },
-                    { id: "PC_ARGUMENT", label: "PC同士の口論" },
-                    { id: "NPC_SACRIFICE", label: "NPCの自己犠牲" },
-                    { id: "NPC_DEATH_FIXED", label: "NPCの死が前提" },
-                    { id: "NPC_DOMINANT", label: "NPCが活躍しすぎる" }
-                ]
-            },
-            {
-                name: "⑩ PvP・対立・卓内摩擦", tags: [
-                    { id: "PVP_MENTAL", label: "PvP（精神的）" },
-                    { id: "PVP_PHYSICAL", label: "PvP（戦闘・肉体的）" },
-                    { id: "PVP_LOST", label: "ロストを伴うPvP" },
-                    { id: "PVP_NO_LOST", label: "ロストを伴わないPvP" },
-                    { id: "FORCED_PVP", label: "シナリオ強制PvP" },
-                    { id: "BETRAYAL", label: "裏切り" },
-                    { id: "PARTY_CONFLICT", label: "パーティ内不和" },
-                    { id: "CONTROL", label: "操作・支配関係" }
-                ]
-            }
-        ];
+/* ===== Base64URL ===== */
+function b64url(bytes){
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function randomB64(len){
+  const b=new Uint8Array(len);
+  crypto.getRandomValues(b);
+  return b64url(b);
+}
 
-        /* ===== Base64URL ===== */
-        function b64url(bytes) {
-            return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        }
-        function randomB64(len) {
-            const b = new Uint8Array(len);
-            crypto.getRandomValues(b);
-            return b64url(b);
-        }
+/* ===== Crypto ===== */
+async function importHmac(raw){
+  return crypto.subtle.importKey("raw", raw, {name:"HMAC", hash:"SHA-256"}, false, ["sign"]);
+}
+async function hmacToken(key, salt, tag){
+  const msg=new TextEncoder().encode(`v1|${salt}|${tag}`);
+  const sig=new Uint8Array(await crypto.subtle.sign("HMAC", key, msg));
+  return b64url(sig.slice(0,16));
+}
 
-        /* ===== Crypto ===== */
-        async function importHmac(raw) {
-            return crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-        }
-        async function hmacToken(key, salt, tag) {
-            const msg = new TextEncoder().encode(`v1|${salt}|${tag}`);
-            const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, msg));
-            return b64url(sig.slice(0, 16));
-        }
-        async function deriveKeyBytesFromPassphrase(passphrase) {
-            const enc = new TextEncoder();
-            const passKey = await crypto.subtle.importKey("raw", enc.encode(passphrase), "PBKDF2", false, ["deriveBits"]);
-            const appSalt = enc.encode("trpg-trigger-check-appsalt-v1");
-            const bits = await crypto.subtle.deriveBits(
-                { name: "PBKDF2", salt: appSalt, iterations: 200000, hash: "SHA-256" },
-                passKey, 256
-            );
-            return new Uint8Array(bits);
-        }
+/* ===== UI描画（labelで包む＝どこでもクリック可） ===== */
+const listRoot=document.getElementById("tagList");
+for(const cat of TAG_CATEGORIES){
+  const h=document.createElement("div");
+  h.className="cat";
+  h.textContent=cat.name;
+  listRoot.appendChild(h);
 
-        /* ===== UI描画（labelで包む＝どこでもクリック可） ===== */
-        const listRoot = document.getElementById("tagList");
-        for (const cat of TAG_CATEGORIES) {
-            const h = document.createElement("div");
-            h.className = "cat";
-            h.textContent = cat.name;
-            listRoot.appendChild(h);
+  const grid=document.createElement("div");
+  grid.className="grid";
 
-            const grid = document.createElement("div");
-            grid.className = "grid";
+  for(const t of cat.tags){
+    const row=document.createElement("label");
+    row.className="item";
+    row.setAttribute("for","tag_"+t.id);
+    row.innerHTML = `
+      <span class="label">${t.label}</span>
+      <input type="checkbox" id="tag_${t.id}">
+    `;
+    grid.appendChild(row);
+  }
+  listRoot.appendChild(grid);
+}
 
-            for (const t of cat.tags) {
-                const row = document.createElement("label");
-                row.className = "item";
-                row.setAttribute("for", "tag_" + t.id);
-                row.innerHTML = `
-          <span class="label">${t.label}</span>
-          <input type="checkbox" id="tag_${t.id}">
-        `;
-                grid.appendChild(row);
-            }
-            listRoot.appendChild(grid);
-        }
+/* ===== 生成（ランダム鍵のみ） ===== */
+document.getElementById("generateBtn").addEventListener("click", async ()=>{
+  const salt = randomB64(16);
 
-        /* ===== 鍵モード切替 ===== */
-        document.querySelectorAll('input[name="keyMode"]').forEach(r => {
-            r.addEventListener("change", () => {
-                const mode = document.querySelector('input[name="keyMode"]:checked').value;
-                document.getElementById("passphraseBox").style.display = mode === "passphrase" ? "block" : "none";
-            });
-        });
+  // ランダム鍵のみ（32バイト）
+  const keyBytes = new Uint8Array(32);
+  crypto.getRandomValues(keyBytes);
 
-        /* ===== 生成 ===== */
-        document.getElementById("generateBtn").addEventListener("click", async () => {
-            const salt = randomB64(16);
+  const keyB64 = b64url(keyBytes);
+  const hmacKey = await importHmac(keyBytes);
 
-            const mode = document.querySelector('input[name="keyMode"]:checked').value;
-            let keyBytes;
-            if (mode === "random") {
-                keyBytes = new Uint8Array(32);
-                crypto.getRandomValues(keyBytes);
-            } else {
-                const pass = (document.getElementById("passphrase").value || "").trim();
-                if (!pass) { alert("合言葉を入力してください"); return; }
-                keyBytes = await deriveKeyBytesFromPassphrase(pass);
-            }
-            const keyB64 = b64url(keyBytes);
-            const hmacKey = await importHmac(keyBytes);
+  const tokens=[];
+  for(const cat of TAG_CATEGORIES){
+    for(const t of cat.tags){
+      if(document.getElementById("tag_"+t.id).checked){
+        tokens.push(await hmacToken(hmacKey, salt, t.id));
+      }
+    }
+  }
 
-            const tokens = [];
-            for (const cat of TAG_CATEGORIES) {
-                for (const t of cat.tags) {
-                    if (document.getElementById("tag_" + t.id).checked) {
-                        tokens.push(await hmacToken(hmacKey, salt, t.id));
-                    }
-                }
-            }
+  // ダミーで64固定
+  while(tokens.length < TARGET_TOKEN_COUNT){
+    tokens.push(randomB64(16));
+  }
 
-            /* ダミーで64固定 */
-            while (tokens.length < TARGET_TOKEN_COUNT) {
-                tokens.push(randomB64(16)); // 一致しないダミー
-            }
+  // シャッフル
+  for(let i=tokens.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [tokens[i],tokens[j]]=[tokens[j],tokens[i]];
+  }
 
-            /* シャッフル */
-            for (let i = tokens.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
-            }
-
-            const payload = { v: 2, salt, key: keyB64, tokens };
-            document.getElementById("outJson").value = JSON.stringify(payload, null, 2);
-        });
-    </script>
+  const payload = { v:2, salt, key:keyB64, tokens };
+  document.getElementById("outJson").value = JSON.stringify(payload, null, 2);
+});
+</script>
 </body>
 </html>
