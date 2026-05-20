@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TRPG セッション確認ツール</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --border: #d7dce2;
+      --muted: #5b6470;
+      --bg-soft: #f6f8fa;
+      --accent: #175c90;
+      --danger: #9f2b2b;
+      --ink: #18202a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 1220px;
+      margin: 24px auto 48px;
+      padding: 0 14px;
+      line-height: 1.65;
+      color: var(--ink);
+    }
+    h1, h2, h3 { line-height: 1.3; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .tabs {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .tabButton {
+      border: 0;
+      border-right: 1px solid var(--border);
+      border-radius: 0;
+      padding: 10px 16px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+    }
+    .tabButton:last-child { border-right: 0; }
+    .tabButton[aria-selected="true"] {
+      background: var(--accent);
+      color: #fff;
+    }
+    .panel[hidden] { display: none; }
+    .box {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 14px 0;
+      background: #fff;
+    }
+    .note {
+      border-left: 4px solid var(--accent);
+      background: var(--bg-soft);
+      padding: 10px 12px;
+      margin: 12px 0;
+    }
+    .warn {
+      border-left-color: var(--danger);
+      color: #461414;
+      background: #fff7f7;
+    }
+    .small { color: var(--muted); font-size: 0.92rem; }
+    textarea, input[type="text"], select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 10px;
+      font: inherit;
+      background: #fff;
+    }
+    textarea {
+      min-height: 190px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 0.9rem;
+    }
+    .primaryButton {
+      border: 1px solid #134a75;
+      border-radius: 6px;
+      padding: 10px 14px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      cursor: pointer;
+    }
+    .secondaryButton {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 12px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      cursor: pointer;
+    }
+    .primaryButton:hover, .tabButton:hover { filter: brightness(0.96); }
+    .inlineControls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin: 10px 0;
+    }
+    .inlineControls input { flex: 1; }
+    .public-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px 18px;
+    }
+    .field-label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .check-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 9px;
+      cursor: pointer;
+      user-select: none;
+      background: #fff;
+    }
+    .check-pill:hover { background: #f8fafc; }
+    .cat {
+      margin-top: 18px;
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+    .tag-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 10px 14px;
+      margin-top: 8px;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 1px solid #e7eaee;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      background: #fff;
+    }
+    .item:hover { background: #f8fafc; }
+    .item span {
+      flex: 1;
+      min-width: 0;
+      word-break: keep-all;
+      line-break: strict;
+      overflow-wrap: anywhere;
+    }
+    .item input[type="checkbox"] {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      margin: 0;
+    }
+    .status {
+      margin-top: 10px;
+      min-height: 1.6em;
+      color: var(--muted);
+    }
+    .custom-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .custom-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid #e7eaee;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .custom-row span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .counter {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    dl.public-info {
+      display: grid;
+      grid-template-columns: minmax(150px, 240px) 1fr;
+      gap: 8px 14px;
+      margin: 0;
+    }
+    dl.public-info dt {
+      font-weight: 800;
+      color: #263241;
+    }
+    dl.public-info dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    th, td {
+      border: 1px solid #e7eaee;
+      padding: 8px 6px;
+      vertical-align: middle;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: #f6f8fa;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.03);
+    }
+    .labelcol { width: 34%; }
+    .optcol {
+      width: 13.2%;
+      text-align: center;
+      font-size: 0.92rem;
+    }
+    .catrow th {
+      background: #f1f4f7;
+      text-align: left;
+      font-size: 1.02rem;
+      font-weight: 800;
+    }
+    .labelText {
+      word-break: keep-all;
+      line-break: strict;
+      overflow-wrap: anywhere;
+    }
+    .cellLabel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 34px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .cellLabel:hover { background: #f8fafc; }
+    .cellLabel input { margin: 0; }
+    .resultStrong {
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+    .copyText {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fbfcfd;
+      padding: 10px;
+      margin: 8px 0;
+      overflow-wrap: anywhere;
+    }
+    @media (max-width: 780px) {
+      .labelcol { width: 36%; }
+      .optcol { width: 12.8%; font-size: 0.78rem; }
+      th, td { padding: 6px 4px; }
+      dl.public-info { grid-template-columns: 1fr; }
+      .tag-grid { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; }
+    }
+  </style>
+  <script src="tags.js"></script>
+</head>
+<body>
+  <div class="topbar">
+    <h1>TRPG セッション確認ツール</h1>
+    <div class="tabs" role="tablist" aria-label="利用モード">
+      <button id="gmTab" class="tabButton" type="button" role="tab" aria-controls="gmPanel" aria-selected="true">GM用</button>
+      <button id="plTab" class="tabButton" type="button" role="tab" aria-controls="plPanel" aria-selected="false">PL用</button>
+    </div>
+  </div>
+
+  <section id="gmPanel" class="panel" role="tabpanel" aria-labelledby="gmTab">
+    <div class="box">
+      <h2>1) 公開情報を入力</h2>
+      <p class="small">公開情報はPLに表示されます。参加判断に必要で、ネタバレ防止対象にしない情報を入力してください。</p>
+      <div id="publicInfoRoot" class="public-grid"></div>
+    </div>
+
+    <div class="box">
+      <h2>2) シナリオに含まれる要素を選んでください</h2>
+      <p class="small">隠し判定タグはPLに直接表示されません。</p>
+      <div class="note warn">ただし本ツールは善意の利用を前提としたネタバレ軽減ツールであり、技術的な完全秘匿は保証しません。</div>
+      <div id="gmTagList"></div>
+      <div class="box">
+        <h3>GM任意追加項目</h3>
+        <p class="small">追加した項目名はPL側の入力表に表示されます。強いネタバレになる名称は避け、汎用的な表現にしてください。</p>
+        <div class="inlineControls">
+          <input id="customTagInput" type="text" placeholder="例：特定PCへの重い使命、時間制限の強い展開">
+          <button id="addCustomTagBtn" class="secondaryButton" type="button">追加</button>
+        </div>
+        <div id="customTagList" class="custom-list"></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2>3) 配布情報を生成</h2>
+      <button id="generateBtn" class="primaryButton" type="button">生成する</button>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="box">
+      <h2>4) 配布用JSON</h2>
+      <textarea id="outJson" readonly></textarea>
+      <p class="small">tokens は常に128個固定です。配布用JSONには公開情報も含まれます。</p>
+      <h3>短縮コード</h3>
+      <textarea id="shortOut" readonly></textarea>
+      <div id="shortStatus" class="counter"></div>
+      <h3>PL用URL</h3>
+      <textarea id="shareUrlOut" readonly></textarea>
+      <div id="shareUrlStatus" class="counter"></div>
+      <p class="small">短縮コードは標準タグのみ対応です。任意追加項目がある場合は通常JSONを使ってください。短縮コードは文字数を優先するため、技術的な秘匿性は通常JSONより低くなります。</p>
+    </div>
+  </section>
+
+  <section id="plPanel" class="panel" role="tabpanel" aria-labelledby="plTab" hidden>
+    <div class="box">
+      <h2>1) GMから受け取った配布JSONを貼る</h2>
+      <textarea id="inJson" placeholder='{"v":3,"tagSetVersion":"...","salt":"...","key":"...","tokens":["..."],"publicInfo":{...}}'></textarea>
+      <div id="jsonWarnings"></div>
+    </div>
+
+    <div class="box">
+      <h2>2) 公開情報を確認</h2>
+      <div id="publicInfoView" class="small">JSONを貼り付けると、公開情報がここに表示されます。</div>
+    </div>
+
+    <div class="box">
+      <h2>3) 自分の苦手・好みを選ぶ</h2>
+      <div class="note">項目名自体に強い内容を含む場合があります。具体的な該当項目は表示されません。不安がある場合は、内容を伏せたままGMへ相談してください。</div>
+      <div id="plTableRoot"></div>
+    </div>
+
+    <div class="box">
+      <button id="checkBtn" class="primaryButton" type="button">判定する</button>
+    </div>
+
+    <div class="box">
+      <h2>結果</h2>
+      <div id="result"></div>
+    </div>
+  </section>
+
+  <script>
+    const CONFIG = window.TRPG_TAG_CONFIG;
+    let gmCustomTags = [];
+
+    function allHiddenTags() {
+      return CONFIG.hiddenTagCategories.flatMap((category) => category.tags);
+    }
+
+    function hiddenCategoriesForPayload(payload) {
+      const categories = CONFIG.hiddenTagCategories.map((category) => ({
+        name: category.name,
+        tags: category.tags
+      }));
+
+      if (payload && Array.isArray(payload.customHiddenTags) && payload.customHiddenTags.length > 0) {
+        categories.push({
+          name: "GM任意追加項目",
+          tags: payload.customHiddenTags.filter((tag) => tag && tag.id && tag.label)
+        });
+      }
+
+      return categories;
+    }
+
+    function allCheckTags(payload) {
+      return hiddenCategoriesForPayload(payload).flatMap((category) => category.tags);
+    }
+
+    function b64url(bytes) {
+      return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    function utf8ToB64url(text) {
+      return b64url(new TextEncoder().encode(text));
+    }
+
+    function b64urlToUtf8(text) {
+      return new TextDecoder().decode(fromB64url(text));
+    }
+
+    function fromB64url(s) {
+      const pad = "=".repeat((4 - s.length % 4) % 4);
+      const bin = atob((s + pad).replace(/-/g, "+").replace(/_/g, "/"));
+      return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    }
+
+    async function importHmac(raw) {
+      return crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    }
+
+    async function hmacToken(key, salt, tag) {
+      const msg = new TextEncoder().encode(`v1|${salt}|${tag}`);
+      const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, msg));
+      return b64url(sig.slice(0, 16));
+    }
+
+    function setMode(mode, updateHash = true) {
+      const isGm = mode === "gm";
+      document.getElementById("gmPanel").hidden = !isGm;
+      document.getElementById("plPanel").hidden = isGm;
+      document.getElementById("gmTab").setAttribute("aria-selected", String(isGm));
+      document.getElementById("plTab").setAttribute("aria-selected", String(!isGm));
+      if (updateHash) history.replaceState(null, "", isGm ? "#gm" : "#check");
+    }
+
+    function currentBaseUrl() {
+      return `${location.origin}${location.pathname}`;
+    }
+
+    function optionLabel(def, value) {
+      const option = def.options.find((opt) => opt.id === value);
+      return option ? option.label : value;
+    }
+
+    function formatPublicValue(def, value) {
+      if (def.type === "checks" && Array.isArray(value)) {
+        return value.map((item) => optionLabel(def, item)).join(" / ");
+      }
+      if (def.type === "select") return optionLabel(def, value);
+      if (def.type === "number" && def.id === "play_time") return `${value}時間`;
+      return String(value);
+    }
+
+    function renderPublicInfoForm() {
+      const root = document.getElementById("publicInfoRoot");
+      root.innerHTML = "";
+
+      for (const def of CONFIG.publicInfoDefinitions) {
+        const wrap = document.createElement("div");
+        const label = document.createElement("label");
+        label.className = "field-label";
+        label.textContent = def.label;
+        wrap.appendChild(label);
+
+        if (def.type === "text" || def.type === "number") {
+          const input = document.createElement("input");
+          input.type = def.type === "number" ? "number" : "text";
+          input.id = `public_${def.id}`;
+          input.placeholder = def.placeholder || "";
+          if (def.min !== undefined) input.min = String(def.min);
+          if (def.step !== undefined) input.step = String(def.step);
+          wrap.appendChild(input);
+        }
+
+        if (def.type === "select") {
+          const select = document.createElement("select");
+          select.id = `public_${def.id}`;
+          const empty = document.createElement("option");
+          empty.value = "";
+          empty.textContent = "未入力";
+          select.appendChild(empty);
+          for (const opt of def.options) {
+            const option = document.createElement("option");
+            option.value = opt.id;
+            option.textContent = opt.label;
+            select.appendChild(option);
+          }
+          wrap.appendChild(select);
+        }
+
+        if (def.type === "checks") {
+          const checks = document.createElement("div");
+          checks.className = "checks";
+          for (const opt of def.options) {
+            const checkLabel = document.createElement("label");
+            checkLabel.className = "check-pill";
+            checkLabel.innerHTML = `<input type="checkbox" id="public_${def.id}_${opt.id}" value="${opt.id}"><span>${opt.label}</span>`;
+            checks.appendChild(checkLabel);
+          }
+          wrap.appendChild(checks);
+        }
+
+        root.appendChild(wrap);
+      }
+    }
+
+    function renderGmHiddenTags() {
+      const root = document.getElementById("gmTagList");
+      root.innerHTML = "";
+
+      for (const category of CONFIG.hiddenTagCategories) {
+        const heading = document.createElement("div");
+        heading.className = "cat";
+        heading.textContent = category.name;
+        root.appendChild(heading);
+
+        const grid = document.createElement("div");
+        grid.className = "tag-grid";
+
+        for (const tag of category.tags) {
+          const row = document.createElement("label");
+          row.className = "item";
+          row.setAttribute("for", `tag_${tag.id}`);
+          row.innerHTML = `<span>${tag.label}</span><input type="checkbox" id="tag_${tag.id}">`;
+          grid.appendChild(row);
+        }
+
+        root.appendChild(grid);
+      }
+    }
+
+    function renderCustomTags() {
+      const root = document.getElementById("customTagList");
+      root.innerHTML = "";
+
+      if (gmCustomTags.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "small";
+        empty.textContent = "任意追加項目はありません。";
+        root.appendChild(empty);
+        return;
+      }
+
+      for (const tag of gmCustomTags) {
+        const row = document.createElement("div");
+        row.className = "custom-row";
+
+        const label = document.createElement("span");
+        label.textContent = tag.label;
+
+        const checkLabel = document.createElement("label");
+        checkLabel.className = "check-pill";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = `custom_tag_${tag.id}`;
+        checkbox.checked = Boolean(tag.checked);
+        checkbox.addEventListener("change", () => {
+          tag.checked = checkbox.checked;
+        });
+        const checkText = document.createElement("span");
+        checkText.textContent = "含む";
+        checkLabel.append(checkbox, checkText);
+
+        const remove = document.createElement("button");
+        remove.className = "secondaryButton";
+        remove.type = "button";
+        remove.textContent = "削除";
+        remove.addEventListener("click", () => {
+          gmCustomTags = gmCustomTags.filter((item) => item.id !== tag.id);
+          renderCustomTags();
+        });
+
+        row.append(label, checkLabel, remove);
+        root.appendChild(row);
+      }
+    }
+
+    function addCustomTag() {
+      const input = document.getElementById("customTagInput");
+      const label = input.value.trim();
+      if (!label) return;
+
+      gmCustomTags.push({
+        id: `CUSTOM_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+        label,
+        checked: true
+      });
+      input.value = "";
+      renderCustomTags();
+    }
+
+    function collectPublicInfo() {
+      const publicInfo = {};
+
+      for (const def of CONFIG.publicInfoDefinitions) {
+        if (def.type === "text" || def.type === "number" || def.type === "select") {
+          const value = document.getElementById(`public_${def.id}`).value.trim();
+          if (value) publicInfo[def.id] = value;
+        }
+
+        if (def.type === "checks") {
+          const values = def.options
+            .map((opt) => document.getElementById(`public_${def.id}_${opt.id}`))
+            .filter((input) => input.checked)
+            .map((input) => input.value);
+          if (values.length > 0) publicInfo[def.id] = values;
+        }
+      }
+
+      return publicInfo;
+    }
+
+    function setStatus(text, isError) {
+      const status = document.getElementById("status");
+      status.textContent = text;
+      status.style.color = isError ? "#9f2b2b" : "#5b6470";
+    }
+
+    function renderPublicInfoView(payload) {
+      const view = document.getElementById("publicInfoView");
+
+      if (!payload || !payload.publicInfo || typeof payload.publicInfo !== "object") {
+        view.className = "small";
+        view.textContent = "公開情報は未設定です。";
+        return;
+      }
+
+      const rows = CONFIG.publicInfoDefinitions
+        .filter((def) => Object.prototype.hasOwnProperty.call(payload.publicInfo, def.id))
+        .map((def) => ({ label: def.label, value: formatPublicValue(def, payload.publicInfo[def.id]) }))
+        .filter((row) => row.value);
+
+      if (rows.length === 0) {
+        view.className = "small";
+        view.textContent = "公開情報は未設定です。";
+        return;
+      }
+
+      const dl = document.createElement("dl");
+      dl.className = "public-info";
+      for (const row of rows) {
+        const dt = document.createElement("dt");
+        dt.textContent = row.label;
+        const dd = document.createElement("dd");
+        dd.textContent = row.value;
+        dl.append(dt, dd);
+      }
+
+      view.className = "";
+      view.innerHTML = "";
+      view.appendChild(dl);
+    }
+
+    function payloadWarnings(payload) {
+      const warnings = [];
+      if (!payload) return warnings;
+
+      if (payload.compact) {
+        warnings.push("短縮コード形式です。文字数を優先するため、通常JSONより技術的な秘匿性は低くなります。");
+      }
+
+      if (!payload.tagSetVersion) {
+        warnings.push("旧形式のJSONです。tagSetVersion がないため、旧タグセットとの完全互換は保証しません。salt / key / tokens があれば可能な範囲で判定します。");
+      } else if (payload.tagSetVersion !== CONFIG.tagSetVersion) {
+        warnings.push(`タグセットのバージョンが現在のものと異なります。JSON: ${payload.tagSetVersion} / 現在: ${CONFIG.tagSetVersion}。警告後も判定は可能です。`);
+      }
+
+      if (!payload.compact && Array.isArray(payload.tokens) && payload.tokens.length !== CONFIG.targetTokenCount) {
+        warnings.push(`tokens が現在設定の${CONFIG.targetTokenCount}個ではありません。旧形式または別設定のJSONとして判定します。`);
+      }
+
+      return warnings;
+    }
+
+    function encodeCompactPayload(selectedTags, publicInfo) {
+      if (gmCustomTags.length > 0) {
+        return {
+          code: "",
+          status: "任意追加項目があるため短縮コードは生成しません。通常JSONを使ってください。",
+          url: "",
+          urlStatus: "任意追加項目があるためPL用URLは生成しません。"
+        };
+      }
+
+      const standardTags = allHiddenTags();
+      const selectedIds = new Set(selectedTags.map((tag) => tag.id));
+      const mask = new Uint8Array(Math.ceil(standardTags.length / 8));
+
+      standardTags.forEach((tag, index) => {
+        if (selectedIds.has(tag.id)) {
+          mask[Math.floor(index / 8)] |= 1 << (index % 8);
+        }
+      });
+
+      const info = encodeCompactPublicInfo(publicInfo);
+      const code = `T5.${b64url(mask)}.${info}`;
+      const url = `${currentBaseUrl()}#check=${encodeURIComponent(code)}`;
+      return {
+        code,
+        status: `${code.length}文字${code.length <= 280 ? "（280文字以内）" : "（280文字超過。公開情報を減らすと短くできます）"}`,
+        url,
+        urlStatus: `${url.length}文字${url.length <= 280 ? "（280文字以内）" : "（280文字超過。公開情報を減らすと短くできます）"}`
+      };
+    }
+
+    function encodeCompactPublicInfo(publicInfo) {
+      const segments = [];
+
+      CONFIG.publicInfoDefinitions.forEach((def, index) => {
+        const value = publicInfo[def.id];
+        if (value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0)) return;
+
+        const key = index.toString(36);
+        if (def.type === "number" && def.id === "play_time") {
+          segments.push(`${key}${String(value).replace(".", "_")}`);
+          return;
+        }
+
+        if (def.type === "select") {
+          const optionIndex = def.options.findIndex((opt) => opt.id === value);
+          if (optionIndex >= 0) segments.push(`${key}${optionIndex.toString(36)}`);
+          return;
+        }
+
+        if (def.type === "checks" && Array.isArray(value)) {
+          let bitmask = 0;
+          def.options.forEach((opt, optionIndex) => {
+            if (value.includes(opt.id)) bitmask |= 1 << optionIndex;
+          });
+          if (bitmask > 0) segments.push(`${key}${bitmask.toString(36)}`);
+        }
+      });
+
+      return segments.join("-");
+    }
+
+    function decodeCompactPublicInfo(info) {
+      const publicInfo = {};
+      if (!info) return publicInfo;
+
+      for (const segment of info.split("-")) {
+        if (!segment) continue;
+        const defIndex = parseInt(segment[0], 36);
+        const def = CONFIG.publicInfoDefinitions[defIndex];
+        if (!def) continue;
+
+        const rawValue = segment.slice(1);
+        if (def.type === "number" && def.id === "play_time") {
+          const value = rawValue.replace("_", ".");
+          if (value) publicInfo[def.id] = value;
+          continue;
+        }
+
+        if (def.type === "select") {
+          const option = def.options[parseInt(rawValue, 36)];
+          if (option) publicInfo[def.id] = option.id;
+          continue;
+        }
+
+        if (def.type === "checks") {
+          const bitmask = parseInt(rawValue, 36);
+          const values = def.options
+            .filter((opt, optionIndex) => (bitmask & (1 << optionIndex)) !== 0)
+            .map((opt) => opt.id);
+          if (values.length > 0) publicInfo[def.id] = values;
+        }
+      }
+
+      return publicInfo;
+    }
+
+    function decodeCompactPayload(raw) {
+      const parts = raw.split(".");
+      if (parts.length !== 3 || (parts[0] !== "T3" && parts[0] !== "T4" && parts[0] !== "T5")) {
+        throw new Error("Invalid compact payload");
+      }
+
+      const mask = fromB64url(parts[1]);
+      const selectedIds = new Set();
+      allHiddenTags().forEach((tag, index) => {
+        if ((mask[Math.floor(index / 8)] & (1 << (index % 8))) !== 0) {
+          selectedIds.add(tag.id);
+        }
+      });
+
+      const publicInfo = parts[0] === "T4" || parts[0] === "T5"
+        ? decodeCompactPublicInfo(parts[2])
+        : (parts[2] ? JSON.parse(b64urlToUtf8(parts[2])) : {});
+      return {
+        v: 3,
+        compact: true,
+        tagSetVersion: CONFIG.tagSetVersion,
+        selectedIds,
+        publicInfo
+      };
+    }
+
+    function parsePayload(raw) {
+      if (raw.startsWith("T3.") || raw.startsWith("T4.") || raw.startsWith("T5.")) return decodeCompactPayload(raw);
+      return JSON.parse(raw);
+    }
+
+    function renderWarnings(payload) {
+      const root = document.getElementById("jsonWarnings");
+      root.innerHTML = "";
+      for (const warning of payloadWarnings(payload)) {
+        const div = document.createElement("div");
+        div.className = "note warn";
+        div.textContent = warning;
+        root.appendChild(div);
+      }
+    }
+
+    function parsePayloadForPreview(updateTable = true) {
+      const raw = document.getElementById("inJson").value.trim();
+      if (!raw) {
+        document.getElementById("jsonWarnings").innerHTML = "";
+        document.getElementById("publicInfoView").className = "small";
+        document.getElementById("publicInfoView").textContent = "JSONを貼り付けると、公開情報がここに表示されます。";
+        if (updateTable) renderPlTable();
+        return null;
+      }
+
+      try {
+        const payload = parsePayload(raw);
+        renderWarnings(payload);
+        renderPublicInfoView(payload);
+        if (updateTable) renderPlTable(payload);
+        return payload;
+      } catch {
+        document.getElementById("jsonWarnings").innerHTML = '<div class="note warn">JSONの形式が正しくありません。</div>';
+        return null;
+      }
+    }
+
+    function renderPlTable(payload) {
+      const root = document.getElementById("plTableRoot");
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const header = document.createElement("tr");
+
+      const itemTh = document.createElement("th");
+      itemTh.className = "labelcol";
+      itemTh.textContent = "項目";
+      header.appendChild(itemTh);
+
+      for (const opt of CONFIG.responseOptions) {
+        const th = document.createElement("th");
+        th.className = "optcol";
+        th.textContent = opt.label;
+        header.appendChild(th);
+      }
+      thead.appendChild(header);
+
+      const tbody = document.createElement("tbody");
+      for (const category of hiddenCategoriesForPayload(payload)) {
+        const catTr = document.createElement("tr");
+        catTr.className = "catrow";
+        const catTh = document.createElement("th");
+        catTh.colSpan = CONFIG.responseOptions.length + 1;
+        catTh.textContent = category.name;
+        catTr.appendChild(catTh);
+        tbody.appendChild(catTr);
+
+        for (const tag of category.tags) {
+          const tr = document.createElement("tr");
+          const labelTd = document.createElement("td");
+          labelTd.className = "labelcol";
+          labelTd.innerHTML = `<div class="labelText">${tag.label}</div>`;
+          tr.appendChild(labelTd);
+
+          for (const opt of CONFIG.responseOptions) {
+            const td = document.createElement("td");
+            td.className = "optcol";
+            const label = document.createElement("label");
+            label.className = "cellLabel";
+            label.innerHTML = `<input type="radio" name="${tag.id}" value="${opt.id}" ${opt.id === "ok" ? "checked" : ""}>`;
+            td.appendChild(label);
+            tr.appendChild(td);
+          }
+
+          tbody.appendChild(tr);
+        }
+      }
+
+      table.append(thead, tbody);
+      root.innerHTML = "";
+      root.appendChild(table);
+    }
+
+    function selectedResponse(tagId) {
+      const input = document.querySelector(`input[name="${tagId}"]:checked`);
+      return input ? input.value : "ok";
+    }
+
+    function resultMessage(hits) {
+      if (hits.avoid) return "確実に避けたい要素が含まれています。参加前にGMへ相談してください。";
+      if (hits.like && (hits.light || hits.dislike)) return "好みの要素もありますが、注意・相談が必要な要素も含まれています。";
+      if (hits.light) return "描写調整を希望する要素が含まれています。描写薄め・フェードアウト等の相談を推奨します。";
+      if (hits.dislike) return "好ましくない要素が含まれています。";
+      if (hits.like) return "好みに合う要素が含まれている可能性があります。";
+      return "判定上、大きな問題は検出されませんでした。";
+    }
+
+    function renderResult(hits, message) {
+      const result = document.getElementById("result");
+      result.innerHTML = "";
+
+      const p = document.createElement("p");
+      p.className = "resultStrong";
+      p.textContent = message;
+      result.appendChild(p);
+
+      const copyTexts = [];
+      if (hits.avoid) {
+        copyTexts.push("判定の結果、確実に避けたい要素が含まれていました。具体的な内容は伏せたまま、参加可否や調整可否について相談したいです。");
+      }
+      if (hits.light) {
+        copyTexts.push("判定の結果、描写薄めなら可能な要素が含まれていました。詳細描写の省略・フェードアウト・事前合図などが可能か相談したいです。");
+      }
+      if (hits.dislike) {
+        copyTexts.push("判定の結果、好ましくない要素が含まれていました。必要に応じて描写の濃度だけ確認したいです。");
+      }
+
+      if (copyTexts.length > 0) {
+        const lead = document.createElement("p");
+        lead.textContent = "GMへ相談するためのコピペ文";
+        result.appendChild(lead);
+
+        for (const text of copyTexts) {
+          const div = document.createElement("div");
+          div.className = "copyText";
+          div.textContent = text;
+          result.appendChild(div);
+        }
+      }
+    }
+
+    renderPublicInfoForm();
+    renderGmHiddenTags();
+    renderCustomTags();
+    renderPlTable();
+
+    document.getElementById("gmTab").addEventListener("click", () => setMode("gm"));
+    document.getElementById("plTab").addEventListener("click", () => setMode("check"));
+    document.getElementById("addCustomTagBtn").addEventListener("click", addCustomTag);
+    document.getElementById("customTagInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addCustomTag();
+      }
+    });
+    function applyHashState() {
+      if (location.hash.startsWith("#check=")) {
+        setMode("check", false);
+        document.getElementById("inJson").value = decodeURIComponent(location.hash.slice("#check=".length));
+        parsePayloadForPreview(true);
+        return;
+      }
+      setMode(location.hash === "#gm" ? "gm" : "check", false);
+    }
+    window.addEventListener("hashchange", applyHashState);
+    applyHashState();
+
+    document.getElementById("generateBtn").addEventListener("click", async () => {
+      setStatus("", false);
+      const standardSelectedTags = allHiddenTags().filter((tag) => document.getElementById(`tag_${tag.id}`).checked);
+      const customSelectedTags = gmCustomTags.filter((tag) => tag.checked).map((tag) => ({ id: tag.id, label: tag.label }));
+      const selectedTags = standardSelectedTags.concat(customSelectedTags);
+      const publicInfo = collectPublicInfo();
+
+      if (selectedTags.length > CONFIG.targetTokenCount) {
+        setStatus(`選択された隠し判定タグが${CONFIG.targetTokenCount}個を超えています。タグ数を減らすか targetTokenCount を見直してください。`, true);
+        return;
+      }
+
+      const salt = b64url(crypto.getRandomValues(new Uint8Array(16)));
+      const keyBytes = crypto.getRandomValues(new Uint8Array(32));
+      const hmacKey = await importHmac(keyBytes);
+      const tokenSet = new Set();
+
+      for (const tag of selectedTags) {
+        tokenSet.add(await hmacToken(hmacKey, salt, tag.id));
+      }
+
+      while (tokenSet.size < CONFIG.targetTokenCount) {
+        tokenSet.add(b64url(crypto.getRandomValues(new Uint8Array(16))));
+      }
+
+      const tokens = Array.from(tokenSet);
+      for (let i = tokens.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
+      }
+
+      const payload = {
+        v: 3,
+        tagSetVersion: CONFIG.tagSetVersion,
+        salt,
+        key: b64url(keyBytes),
+        tokens,
+        publicInfo
+      };
+
+      if (gmCustomTags.length > 0) {
+        payload.customHiddenTags = gmCustomTags.map((tag) => ({ id: tag.id, label: tag.label }));
+      }
+
+      const payloadJson = JSON.stringify(payload);
+      document.getElementById("outJson").value = payloadJson;
+      const compact = encodeCompactPayload(selectedTags, publicInfo);
+      document.getElementById("shortOut").value = compact.code;
+      document.getElementById("shortStatus").textContent = compact.status;
+      document.getElementById("shareUrlOut").value = compact.url;
+      document.getElementById("shareUrlStatus").textContent = compact.urlStatus;
+      setStatus(`生成しました。tokens: ${tokens.length}個、通常JSON: ${payloadJson.length}文字、タグセット: ${CONFIG.tagSetVersion}`, false);
+    });
+
+    document.getElementById("inJson").addEventListener("input", parsePayloadForPreview);
+
+    document.getElementById("checkBtn").addEventListener("click", async () => {
+      const result = document.getElementById("result");
+      result.innerHTML = "";
+
+      const payload = parsePayloadForPreview(false);
+      if (!payload) {
+        result.textContent = "配布JSONの形式が正しくありません。";
+        return;
+      }
+      if (!payload.compact && (!payload.salt || !payload.key || !Array.isArray(payload.tokens))) {
+        result.textContent = "配布JSONに必要な項目（salt / key / tokens）がありません。";
+        return;
+      }
+
+      let hkey;
+      if (!payload.compact) {
+        try {
+          hkey = await importHmac(fromB64url(payload.key));
+        } catch {
+          result.textContent = "配布JSONの key を読み込めませんでした。";
+          return;
+        }
+      }
+
+      const tokenSet = new Set(payload.tokens || []);
+      const hits = { like: false, light: false, dislike: false, avoid: false };
+
+      for (const tag of allCheckTags(payload)) {
+        const response = selectedResponse(tag.id);
+        if (response === "ok") continue;
+
+        let isIncluded = false;
+        if (payload.compact) {
+          isIncluded = payload.selectedIds.has(tag.id);
+        } else {
+          const token = await hmacToken(hkey, payload.salt, tag.id);
+          isIncluded = tokenSet.has(token);
+        }
+        if (!isIncluded) continue;
+
+        if (response === "like") hits.like = true;
+        if (response === "light") hits.light = true;
+        if (response === "dislike") hits.dislike = true;
+        if (response === "avoid") hits.avoid = true;
+      }
+
+      renderResult(hits, resultMessage(hits));
+    });
+  </script>
+</body>
+</html>
